@@ -10,7 +10,7 @@ export default function useWebSocket(url) {
   const [commandStatus, setCommandStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [interfaces, setInterfaces] = useState([]); // State for interfaces
+  const [interfaces, setInterfaces] = useState([]);
   const ws = useRef(null);
 
   const isStopping = useRef(false);
@@ -46,12 +46,9 @@ export default function useWebSocket(url) {
 
           case "update":
           case "metrics_update":
-            const newLossFromPayload = msg.metrics.packet_loss_count || 0;
-            setMetrics(prevMetrics => {
-              const oldCumulativeLoss = prevMetrics ? prevMetrics.packet_loss_count : 0;
-              const newCumulativeLoss = oldCumulativeLoss + newLossFromPayload;
-              return { ...msg.metrics, packet_loss_count: newCumulativeLoss };
-            });
+            // --- SIMPLIFIED LOGIC HERE ---
+            // The backend already sends the cumulative packet loss, so we just set the metrics directly.
+            setMetrics(msg.metrics);
             setStreamCount(msg.stream_count || 0);
 
             if (msg.new_packets && msg.new_packets.length > 0) {
@@ -90,8 +87,7 @@ export default function useWebSocket(url) {
     if (command === "stop_capture") {
       isStopping.current = true;
       setMetrics(prev => ({ ...prev, status: "stopped" }));
-      // Optimistic UI update for stop command
-      setLoading(false);
+      setLoading(false); 
     }
 
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
