@@ -10,6 +10,7 @@ export default function Dashboard({
   loading,
   error,
   sendCommand,
+  interfaces, // Receive interfaces prop
 }) {
   return (
     <div>
@@ -18,6 +19,7 @@ export default function Dashboard({
         sendCommand={sendCommand}
         loading={loading}
         commandStatus={commandStatus}
+        interfaces={interfaces} // Pass interfaces to ControlPanel
       />
       <MetricCards metrics={metrics} streamCount={streamCount} />
     </div>

@@ -10,11 +10,11 @@ export default function useWebSocket(url) {
   const [commandStatus, setCommandStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [interfaces, setInterfaces] = useState([]); // State for interfaces
   const ws = useRef(null);
 
-  // THIS IS THE KEY ADDITION: A flag to prevent race conditions
   const isStopping = useRef(false);
-  
+
   useEffect(() => {
     ws.current = new WebSocket(url);
     ws.current.onopen = () => setWsConnected(true);
@@ -26,11 +26,9 @@ export default function useWebSocket(url) {
         const msg = JSON.parse(data);
         setError(null);
 
-        // If we are in the process of stopping, ignore any "running" status
         if (isStopping.current && msg.metrics?.status === "running") {
-          return; // Skip this update to prevent overwriting our "stopped" status
+          return;
         }
-        // Once we receive a "stopped" status, reset the flag
         if (msg.metrics?.status === "stopped") {
           isStopping.current = false;
         }
@@ -39,6 +37,11 @@ export default function useWebSocket(url) {
           case "initial_state":
             setMetrics(msg.metrics);
             setPackets(msg.packets || []);
+            setInterfaces(msg.interfaces || []);
+            break;
+
+          case "interfaces_response":
+            setInterfaces(msg.interfaces || []);
             break;
 
           case "update":
@@ -63,8 +66,8 @@ export default function useWebSocket(url) {
             setCommandStatus(msg);
             setLoading(false);
             if (msg.command === "start_capture" && msg.success) {
-              isStopping.current = false; // Reset flag on new start
-              setMetrics(null); 
+              isStopping.current = false;
+              setMetrics(null);
               setPackets([]);
               setStreamCount(0);
             }
@@ -84,11 +87,11 @@ export default function useWebSocket(url) {
   const sendCommand = (command, payload = {}) => {
     setLoading(true);
 
-    // THIS IS THE OTHER KEY CHANGE
     if (command === "stop_capture") {
-      isStopping.current = true; // Set the flag before sending the command
-      // Optimistically update the UI so it feels instantaneous
+      isStopping.current = true;
       setMetrics(prev => ({ ...prev, status: "stopped" }));
+      // Optimistic UI update for stop command
+      setLoading(false);
     }
 
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
@@ -108,5 +111,6 @@ export default function useWebSocket(url) {
     loading,
     error,
     sendCommand,
+    interfaces,
   };
 }

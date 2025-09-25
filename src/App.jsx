@@ -9,7 +9,6 @@ const WEBSOCKET_URL = "ws://localhost:8765";
 function App() {
   const [view, setView] = useState("dashboard");
 
-  // Establish the WebSocket connection ONCE, in the top-level component.
   const {
     wsConnected,
     metrics,
@@ -19,16 +18,13 @@ function App() {
     loading,
     error,
     sendCommand,
+    interfaces, // Get interfaces from the hook
   } = useWebSocket(WEBSOCKET_URL);
 
   return (
     <div className="bg-base-dark min-h-screen text-text-main font-sans flex">
       <Sidebar activeView={view} setActiveView={setView} />
       <main className="flex-1 p-8">
-        {/* 
-          Pass the state and functions down as props.
-          The child components no longer manage their own connections.
-        */}
         {view === "dashboard" ? (
           <Dashboard
             wsConnected={wsConnected}
@@ -38,6 +34,7 @@ function App() {
             loading={loading}
             error={error}
             sendCommand={sendCommand}
+            interfaces={interfaces} // Pass interfaces to Dashboard
           />
         ) : (
           <RawData
