@@ -10,17 +10,21 @@ export default function Dashboard({
   loading,
   error,
   sendCommand,
-  interfaces, // Receive interfaces prop
+  interfaces,
 }) {
   return (
     <div>
-      <StatusBanner connected={wsConnected} error={error} />
+      {/* Pass metrics to StatusBanner to show capture status */}
+      <StatusBanner connected={wsConnected} error={error} metrics={metrics} />
+      
       <ControlPanel
         sendCommand={sendCommand}
         loading={loading}
         commandStatus={commandStatus}
-        interfaces={interfaces} // Pass interfaces to ControlPanel
+        interfaces={interfaces}
       />
+      
+      {/* The Status card is now removed from here */}
       <MetricCards metrics={metrics} streamCount={streamCount} />
     </div>
   );
