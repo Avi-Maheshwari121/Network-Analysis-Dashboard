@@ -2,7 +2,7 @@ import { useState } from "react";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import RawData from "./pages/RawData";
-import useWebSocket from "./hooks/useWebsocket.js"; // Import the hook here
+import useWebSocket from "./hooks/useWebsocket.js";
 
 const WEBSOCKET_URL = "ws://localhost:8765";
 
@@ -18,7 +18,8 @@ function App() {
     loading,
     error,
     sendCommand,
-    interfaces, // Get interfaces from the hook
+    interfaces,
+    metricsHistory, // Get metrics history from the hook
   } = useWebSocket(WEBSOCKET_URL);
 
   return (
@@ -34,7 +35,8 @@ function App() {
             loading={loading}
             error={error}
             sendCommand={sendCommand}
-            interfaces={interfaces} // Pass interfaces to Dashboard
+            interfaces={interfaces}
+            metricsHistory={metricsHistory} // Pass history to Dashboard
           />
         ) : (
           <RawData

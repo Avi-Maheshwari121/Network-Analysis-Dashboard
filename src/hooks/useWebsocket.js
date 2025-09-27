@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 
 const MAX_PACKETS_TO_STORE = 10000;
+const MAX_HISTORY_LENGTH = 30; // Number of data points for the charts
 
 export default function useWebSocket(url) {
   const [wsConnected, setWsConnected] = useState(false);
@@ -11,8 +12,8 @@ export default function useWebSocket(url) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [interfaces, setInterfaces] = useState([]);
+  const [metricsHistory, setMetricsHistory] = useState([]); // State for chart data
   const ws = useRef(null);
-
   const isStopping = useRef(false);
 
   useEffect(() => {
@@ -26,39 +27,41 @@ export default function useWebSocket(url) {
         const msg = JSON.parse(data);
         setError(null);
 
-        if (isStopping.current && msg.metrics?.status === "running") {
-          return;
-        }
-        if (msg.metrics?.status === "stopped") {
-          isStopping.current = false;
-        }
+        if (isStopping.current && msg.metrics?.status === "running") return;
+        if (msg.metrics?.status === "stopped") isStopping.current = false;
 
         switch (msg.type) {
           case "initial_state":
             setMetrics(msg.metrics);
             setPackets(msg.packets || []);
             setInterfaces(msg.interfaces || []);
+            setMetricsHistory([]); // Clear history on new connection
             break;
-
           case "interfaces_response":
             setInterfaces(msg.interfaces || []);
             break;
-
           case "update":
           case "metrics_update":
-            // --- SIMPLIFIED LOGIC HERE ---
-            // The backend already sends the cumulative packet loss, so we just set the metrics directly.
             setMetrics(msg.metrics);
             setStreamCount(msg.stream_count || 0);
 
-            if (msg.new_packets && msg.new_packets.length > 0) {
-              setPackets(prevPackets => {
-                const updatedPackets = [...prevPackets, ...msg.new_packets];
-                return updatedPackets.slice(-MAX_PACKETS_TO_STORE);
-              });
+            // Add new data point to history for charts
+            setMetricsHistory(prevHistory => {
+              const newEntry = {
+                time: new Date().toLocaleTimeString(),
+                inbound: parseFloat((msg.metrics.inbound_throughput || 0).toFixed(2)),
+                outbound: parseFloat((msg.metrics.outbound_throughput || 0).toFixed(2)),
+                latency: parseFloat(msg.metrics.latency.toFixed(1)),
+                jitter: parseFloat((msg.metrics.jitter || 0).toFixed(1)),
+              };
+              const updatedHistory = [...prevHistory, newEntry];
+              return updatedHistory.slice(-MAX_HISTORY_LENGTH);
+            });
+
+            if (msg.new_packets?.length > 0) {
+              setPackets(prev => [...prev, ...msg.new_packets].slice(-MAX_PACKETS_TO_STORE));
             }
             break;
-
           case "command_response":
             setCommandStatus(msg);
             setLoading(false);
@@ -67,9 +70,9 @@ export default function useWebSocket(url) {
               setMetrics(null);
               setPackets([]);
               setStreamCount(0);
+              setMetricsHistory([]); // Clear history on new capture
             }
             break;
-
           default:
             break;
         }
@@ -83,14 +86,12 @@ export default function useWebSocket(url) {
 
   const sendCommand = (command, payload = {}) => {
     setLoading(true);
-
     if (command === "stop_capture") {
       isStopping.current = true;
       setMetrics(prev => ({ ...prev, status: "stopped" }));
-      setLoading(false); 
+      setLoading(false);
     }
-
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+    if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ command, ...payload }));
     } else {
       setError("Cannot send command: WebSocket is not connected.");
@@ -99,14 +100,6 @@ export default function useWebSocket(url) {
   };
 
   return {
-    wsConnected,
-    metrics,
-    packets,
-    streamCount,
-    commandStatus,
-    loading,
-    error,
-    sendCommand,
-    interfaces,
+    wsConnected, metrics, packets, streamCount, commandStatus, loading, error, sendCommand, interfaces, metricsHistory,
   };
 }
